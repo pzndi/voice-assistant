@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>دستیار هوشمند صوتی</title>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f4f6f8;
+      --text-primary: #1a1a1a;
+      --text-secondary: #555;
+      --accent: #0056d2;
+      --mic-bg: #eef2ff;
+      --border: #ddd;
+      --bubble-user: #0056d2;
+      --bubble-ai: #f0f0f0;
+      --bubble-ai-text: #1a1a1a;
+    }
+    .dark-mode {
+      --bg-primary: #121212;
+      --bg-secondary: #1e1e1e;
+      --text-primary: #e4e4e4;
+      --text-secondary: #aaa;
+      --accent: #4d8bff;
+      --mic-bg: #222;
+      --border: #333;
+      --bubble-user: #004cb8;
+      --bubble-ai: #2a2a2a;
+      --bubble-ai-text: #e4e4e4;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Vazirmatn', sans-serif; }
+    body { background: var(--bg-primary); color: var(--text-primary); height: 100vh; display: flex; flex-direction: column; transition: all 0.3s; }
+    .app-header { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); }
+    .logo-container { display: flex; align-items: center; gap: 10px; }
+    .logo { width: 40px; height: 40px; }
+    h1 { font-size: 1.2rem; }
+    .header-btns { display: flex; gap: 10px; }
+    .icon-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-primary); padding: 5px; transition: transform 0.2s; }
+    .icon-btn:hover { transform: scale(1.1); }
+    .chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
+    .welcome-msg { text-align: center; color: var(--text-secondary); margin-top: 15%; font-size: 1.1rem; line-height: 2; }
+    .chat-bubble { max-width: 80%; padding: 12px 18px; border-radius: 16px; line-height: 1.8; font-size: 0.95rem; animation: fadeIn 0.3s ease; word-wrap: break-word; }
+    .user-bubble { align-self: flex-end; background: var(--bubble-user); color: white; }
+    .ai-bubble { align-self: flex-start; background: var(--bubble-ai); color: var(--bubble-ai-text); }
+    .error-bubble { align-self: center; background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; font-size: 0.85rem; max-width: 90%; text-align: center; }
+    .control-panel { padding: 20px; background: var(--bg-secondary); border-top: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .status-text { font-size: 0.9rem; color: var(--accent); font-weight: 600; min-height: 24px; transition: color 0.3s; }
+    .mic-wrapper { position: relative; display: flex; align-items: center; justify-content: center; width: 80px; height: 80px; }
+    .mic-btn { width: 70px; height: 70px; border-radius: 50%; background: var(--mic-bg); border: 2px solid var(--accent); color: var(--accent); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; z-index: 2; }
+    .mic-btn:hover { transform: scale(1.05); box-shadow: 0 4px 15px rgba(0, 86, 210, 0.2); }
+    .mic-btn.listening { background: #ffeb3b; border-color: #fbc02d; color: #f57f17; animation: pulse 1.5s infinite; }
+    .mic-btn.processing { opacity: 0.6; pointer-events: none; }
+    .mic-btn.speaking { background: #e8f5e9; border-color: #4caf50; color: #2e7d32; }
+    .waveform { position: absolute; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; z-index: 1; pointer-events: none; }
+    .waveform span { position: absolute; width: 8px; height: 8px; background: var(--accent); border-radius: 50%; opacity: 0; }
+    .listening .waveform span { animation: wave 1.2s ease-in-out infinite; }
+    .listening .waveform span:nth-child(1) { animation-delay: 0s; }
+    .listening .waveform span:nth-child(2) { animation-delay: 0.2s; }
+    .listening .waveform span:nth-child(3) { animation-delay: 0.4s; }
+    .listening .waveform span:nth-child(4) { animation-delay: 0.6s; }
+    .listening .waveform span:nth-child(5) { animation-delay: 0.8s; }
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; display: none; align-items: center; justify-content: center; }
+    .modal-overlay.active { display: flex; }
+    .modal-box { background: var(--bg-primary); padding: 25px; border-radius: 16px; width: 90%; max-width: 400px; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+    .modal-box h2 { margin-bottom: 20px; text-align: center; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; font-size: 0.9rem; font-weight: 600; }
+    .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-family: inherit; font-size: 0.95rem; }
+    .form-group small { display: block; margin-top: 4px; color: var(--text-secondary); font-size: 0.75rem; }
+    .btn-save { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; margin-top: 10px; transition: background 0.2s; text-align: center; text-decoration: none; display: block; }
+    .btn-save:hover { background: #004cb8; }
+    .save-status { text-align: center; color: var(--accent); margin-bottom: 10px; font-size: 0.9rem; min-height: 24px; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 235, 59, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(255, 235, 59, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 235, 59, 0); } }
+    @keyframes wave { 0% { transform: scale(1); opacity: 0.8; } 100% { transform: scale(4); opacity: 0; } }
+  </style>
+</head>
+<body class="light-mode">
+
+  <header class="app-header">
+    <div class="logo-container">
+      <img src="https://cdn-icons-png.flaticon.com/512/4712/4712109.png" alt="Logo" class="logo">
+      <h1>دستیار هوشمند صوتی</h1>
+    </div>
+    <div class="header-btns">
+      <button id="settingsBtn" class="icon-btn" title="تنظیمات">⚙️</button>
+      <button id="themeBtn" class="icon-btn" title="تغییر تم">🌙</button>
+    </div>
+  </header>
+
+  <main class="chat-container" id="chatContainer">
+    <div class="welcome-msg" id="welcomeMsg">
+      <p>سلام! 👋</p>
+      <p>برای شروع دکمه میکروفون را فشار دهید و سوال خود را بپرسید.</p>
+    </div>
+  </main>
+
+  <footer class="control-panel">
+    <div id="statusText" class="status-text">آماده پاسخگویی</div>
+    <div class="mic-wrapper" id="micWrapper">
+      <div class="waveform" id="waveform">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <button id="micBtn" class="mic-btn" title="شروع ضبط صدا">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32">
+          <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+          <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+        </svg>
+      </button>
+    </div>
+  </footer>
+
+  <div id="settingsModal" class="modal-overlay">
+    <div class="modal-box">
+      <h2>تنظیمات سیستم</h2>
+      <div class="form-group">
+        <label for="setApiKey">کلید Gemini API</label>
+        <input type="password" id="setApiKey" placeholder="خالی بگذارید تا کلید قبلی حفظ شود">
+        <small id="apiKeyStatus"></small>
+      </div>
+      <div class="form-group">
+        <label for="setVoiceSpeed">سرعت صحبت (0.5 تا 2)</label>
+        <input type="number" id="setVoiceSpeed" min="0.5" max="2" step="0.1">
+      </div>
+      <div class="form-group">
+        <label for="setVoiceGender">جنسیت صدا</label>
+        <select id="setVoiceGender">
+          <option value="female">زنانه</option>
+          <option value="male">مردانه</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="setTemperature">خلاقیت هوش مصنوعی (Temperature 0 تا 1)</label>
+        <input type="number" id="setTemperature" min="0" max="1" step="0.1">
+      </div>
+      <div id="saveStatus" class="save-status"></div>
+      <button id="saveSettingsBtn" class="btn-save">ذخیره تنظیمات</button>
+    </div>
+  </div>
+
+  <script>
+    // =====================================================================
+    // تنظیمات اتصال به بک‌اند Apps Script
+    // =====================================================================
+    var CONFIG = {
+      // آدرس دیپلوی وب‌اپ Apps Script خودتان را اینجا بگذارید (باید با /exec تمام شود)
+      WEB_APP_URL: 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec',
+      // همان مقداری که در Script Properties با کلید SHARED_TOKEN ذخیره کردید
+      TOKEN: 'YOUR_SHARED_TOKEN'
+    };
+
+    // فراخوانی بک‌اند بدون preflight CORS:
+    // با ارسال body به صورت text/plain به‌جای application/json از خطای
+    // CORS preflight (که Apps Script پشتیبانی نمی‌کند) جلوگیری می‌شود.
+    function callBackend(action, payload) {
+      return fetch(CONFIG.WEB_APP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: action, payload: payload || {}, token: CONFIG.TOKEN })
+      }).then(function (res) {
+        if (!res.ok) throw new Error('HTTP_' + res.status);
+        return res.json();
+      });
+    }
+
+    var recognition;
+    var synthesis = window.speechSynthesis;
+    var conversationHistory = [];
+    var isProcessing = false;
+    var currentSettings = {};
+
+    window.onload = function () {
+      loadSettings();
+      initSpeechRecognition();
+      attachEventListeners();
+    };
+
+    function attachEventListeners() {
+      document.getElementById('settingsBtn').addEventListener('click', toggleSettings);
+      document.getElementById('themeBtn').addEventListener('click', toggleTheme);
+      document.getElementById('micBtn').addEventListener('click', handleMicClick);
+      document.getElementById('saveSettingsBtn').addEventListener('click', handleSaveSettings);
+
+      document.getElementById('settingsModal').addEventListener('click', function (e) {
+        if (e.target === this) toggleSettings();
+      });
+    }
+
+    function loadSettings() {
+      callBackend('getSettings').then(function (settings) {
+        if (settings.error) {
+          showError('خطا در دریافت تنظیمات: ' + settings.error);
+          return;
+        }
+        currentSettings = settings;
+      }).catch(function (err) {
+        showError('اتصال به سرور برقرار نشد. آدرس WEB_APP_URL را بررسی کنید.');
+        console.error(err);
+      });
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle('dark-mode');
+      var isDark = document.body.classList.contains('dark-mode');
+      document.getElementById('themeBtn').innerText = isDark ? '☀️' : '🌙';
+    }
+
+    function toggleSettings() {
+      document.getElementById('settingsModal').classList.toggle('active');
+      document.getElementById('setApiKey').value = '';
+      document.getElementById('apiKeyStatus').innerText = currentSettings.apiKeySet
+        ? 'یک کلید API از قبل ذخیره شده است.'
+        : 'هنوز کلید API ذخیره نشده است.';
+      document.getElementById('setVoiceSpeed').value = currentSettings.voiceSpeed || 1;
+      document.getElementById('setVoiceGender').value = currentSettings.voiceGender || 'female';
+      document.getElementById('setTemperature').value = currentSettings.temperature || 0.7;
+      document.getElementById('saveStatus').innerText = '';
+    }
+
+    function handleSaveSettings() {
+      var newSettings = {
+        apiKey: document.getElementById('setApiKey').value, // اگر خالی باشد، کلید قبلی حفظ می‌شود
+        voiceSpeed: document.getElementById('setVoiceSpeed').value,
+        voiceGender: document.getElementById('setVoiceGender').value,
+        temperature: document.getElementById('setTemperature').value,
+        maxContext: 10000
+      };
+
+      document.getElementById('saveStatus').innerText = 'در حال ذخیره...';
+      callBackend('saveSettings', newSettings).then(function (res) {
+        if (res.error) throw new Error(res.error);
+        currentSettings.voiceSpeed = newSettings.voiceSpeed;
+        currentSettings.voiceGender = newSettings.voiceGender;
+        currentSettings.temperature = newSettings.temperature;
+        if (newSettings.apiKey) currentSettings.apiKeySet = true;
+        document.getElementById('saveStatus').innerText = '✅ ذخیره شد!';
+        setTimeout(toggleSettings, 800);
+      }).catch(function (err) {
+        document.getElementById('saveStatus').innerText = '❌ خطا در ذخیره!';
+        console.error(err);
+      });
+    }
+
+    function requestMicPermission(callback) {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showError('این مرورگر از دسترسی به میکروفون پشتیبانی نمی‌کند.');
+        callback(false);
+        return;
+      }
+
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(function (stream) {
+          stream.getTracks().forEach(function (track) { track.stop(); });
+          callback(true);
+        })
+        .catch(function (err) {
+          console.error('Mic Permission Error:', err);
+          showError('دسترسی میکروفون رد شد. لطفاً از تنظیمات مرورگر اجازه دهید.');
+          callback(false);
+        });
+    }
+
+    function initSpeechRecognition() {
+      var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        showError('مرورگر شما از تشخیص صدا پشتیبانی نمی‌کند. لطفاً از Google Chrome استفاده کنید.');
+        return;
+      }
+      recognition = new SpeechRecognition();
+      recognition.lang = 'fa-IR';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = function () { setUIState('listening'); };
+
+      recognition.onresult = function (event) {
+        var finalTranscript = '';
+        for (var i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
+        }
+        if (finalTranscript.trim()) {
+          processUserInput(finalTranscript);
+        } else {
+          setUIState('idle');
+        }
+      };
+
+      recognition.onerror = function (event) {
+        setUIState('idle');
+        if (event.error === 'not-allowed') {
+          showError('دسترسی میکروفون رد شد.');
+        } else if (event.error === 'no-speech') {
+          showError('صدایی شنیده نشد. دوباره تلاش کنید.');
+        } else if (event.error !== 'aborted') {
+          showError('خطا در تشخیص صدا: ' + event.error);
+        }
+      };
+
+      recognition.onend = function () {
+        var micBtn = document.getElementById('micBtn');
+        if (micBtn && micBtn.classList.contains('listening')) {
+          setUIState('idle');
+        }
+      };
+    }
+
+    function handleMicClick() {
+      if (isProcessing) return;
+
+      if (synthesis.speaking) {
+        synthesis.cancel();
+        setUIState('idle');
+        return;
+      }
+
+      requestMicPermission(function (hasPermission) {
+        if (!hasPermission) return;
+        try {
+          recognition.start();
+        } catch (e) {
+          recognition.stop();
+          setTimeout(function () { recognition.start(); }, 200);
+        }
+      });
+    }
+
+    function processUserInput(text) {
+      setUIState('processing');
+      addMessageToChat(text, 'user');
+
+      var startTime = Date.now();
+
+      callBackend('askGemini', { question: text, history: conversationHistory })
+        .then(function (res) {
+          var responseTime = Date.now() - startTime;
+
+          if (res.error) {
+            var msg = 'خطای ناشناخته رخ داد.';
+            if (res.error === 'API_KEY_MISSING') msg = 'کلید API تنظیم نشده است. از بخش تنظیمات وارد کنید.';
+            else if (res.error === 'INVALID_API_KEY') msg = 'کلید API نامعتبر است.';
+            else if (res.error === 'EMPTY_SHEET') msg = 'شیت شما خالی است یا ساختار مناسبی ندارد.';
+            else if (res.error === 'UNAUTHORIZED') msg = 'توکن دسترسی نامعتبر است.';
+            else if (res.error === 'API_ERROR') msg = 'خطا در ارتباط با سرور هوش مصنوعی.';
+            showError(msg);
+            setUIState('idle');
+            return;
+          }
+
+          var aiResponse = res.text;
+          addMessageToChat(aiResponse, 'ai');
+          speakText(aiResponse);
+
+          conversationHistory.push({ role: 'user', text: text });
+          conversationHistory.push({ role: 'ai', text: aiResponse });
+
+          callBackend('logConversation', { question: text, answer: aiResponse, responseTime: responseTime })
+            .catch(function (err) { console.error('Log error:', err); });
+        })
+        .catch(function (err) {
+          showError('اتصال به سرور برقرار نشد.');
+          setUIState('idle');
+          console.error(err);
+        });
+    }
+
+    function speakText(text) {
+      synthesis.cancel();
+      var utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fa-IR';
+      utterance.rate = parseFloat(currentSettings.voiceSpeed) || 1;
+
+      var voices = synthesis.getVoices();
+      var faVoice = null;
+      for (var i = 0; i < voices.length; i++) {
+        if (voices[i].lang.startsWith('fa')) { faVoice = voices[i]; break; }
+      }
+      if (!faVoice) {
+        for (var j = 0; j < voices.length; j++) {
+          if (voices[j].lang.startsWith('ar')) { faVoice = voices[j]; break; }
+        }
+      }
+
+      if (faVoice) utterance.voice = faVoice;
+      utterance.pitch = currentSettings.voiceGender === 'male' ? 0.8 : 1.2;
+
+      utterance.onstart = function () { setUIState('speaking'); };
+      utterance.onend = function () { setUIState('idle'); };
+      utterance.onerror = function () { setUIState('idle'); };
+
+      synthesis.speak(utterance);
+    }
+
+    function setUIState(state) {
+      var micBtn = document.getElementById('micBtn');
+      var status = document.getElementById('statusText');
+      var wrapper = document.getElementById('micWrapper');
+
+      micBtn.className = 'mic-btn';
+      wrapper.className = 'mic-wrapper';
+      isProcessing = false;
+
+      if (state === 'listening') {
+        micBtn.classList.add('listening');
+        wrapper.classList.add('listening');
+        status.innerText = '🎙️ در حال گوش دادن...';
+        status.style.color = '#fbc02d';
+      } else if (state === 'processing') {
+        micBtn.classList.add('processing');
+        status.innerText = '⏳ در حال پردازش...';
+        status.style.color = 'var(--accent)';
+        isProcessing = true;
+      } else if (state === 'speaking') {
+        micBtn.classList.add('speaking');
+        status.innerText = '🔊 در حال صحبت...';
+        status.style.color = '#4caf50';
+        isProcessing = true;
+      } else {
+        status.innerText = 'آماده پاسخگویی';
+        status.style.color = 'var(--accent)';
+      }
+    }
+
+    function addMessageToChat(text, sender) {
+      var chatContainer = document.getElementById('chatContainer');
+      var welcomeMsg = document.getElementById('welcomeMsg');
+      if (welcomeMsg) welcomeMsg.remove();
+
+      var div = document.createElement('div');
+      div.className = 'chat-bubble ' + (sender === 'user' ? 'user-bubble' : 'ai-bubble');
+      div.innerText = text;
+      chatContainer.appendChild(div);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function showError(text) {
+      var chatContainer = document.getElementById('chatContainer');
+      var div = document.createElement('div');
+      div.className = 'chat-bubble error-bubble';
+      div.innerText = '⚠️ ' + text;
+      chatContainer.appendChild(div);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = function () { speechSynthesis.getVoices(); };
+    }
+  </script>
+</body>
+</html>
