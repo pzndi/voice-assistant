@@ -145,15 +145,11 @@
     // تنظیمات اتصال به بک‌اند Apps Script
     // =====================================================================
     var CONFIG = {
-      // آدرس دیپلوی وب‌اپ Apps Script خودتان را اینجا بگذارید (باید با /exec تمام شود)
-      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbxVY0f4kPSEFf3O7TTNKy9BdN17u38ZWnJfoo3S2uFN2vw5MXnQ8jQ4a4PhqpTuVY8YPA/exec',
-      // همان مقداری که در Script Properties با کلید SHARED_TOKEN ذخیره کردید
+      // حتما آدرس دیپلوی جدید خود را اینجا قرار دهید
+      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbw5G7SGxgsjL3N1X5C8B35IHrHVITB5XRXCejfzKToKhKEtOT5-JRcJx1vrF4KyI_6pdQ/exec',
       TOKEN: 'va2026-x7Kp9mQ2rT8nL4vB1sD6f'
     };
 
-    // فراخوانی بک‌اند بدون preflight CORS:
-    // با ارسال body به صورت text/plain به‌جای application/json از خطای
-    // CORS preflight (که Apps Script پشتیبانی نمی‌کند) جلوگیری می‌شود.
     function callBackend(action, payload) {
       return fetch(CONFIG.WEB_APP_URL, {
         method: 'POST',
@@ -221,7 +217,7 @@
 
     function handleSaveSettings() {
       var newSettings = {
-        apiKey: document.getElementById('setApiKey').value, // اگر خالی باشد، کلید قبلی حفظ می‌شود
+        apiKey: document.getElementById('setApiKey').value,
         voiceSpeed: document.getElementById('setVoiceSpeed').value,
         voiceGender: document.getElementById('setVoiceGender').value,
         temperature: document.getElementById('setTemperature').value,
