@@ -293,24 +293,37 @@
     // تابع جدید پخش صدای انسانی (از طریق بک‌اند)
     // ==========================================
     function speakText(text) {
-      synthesis.cancel();
-      
-      callBackend('getAudio', { text: text, gender: currentSettings.voiceGender || 'female' })
-        .then(function (res) {
-          if (res.audio) {
-            setUIState('speaking');
-            var audio = new Audio("data:audio/mp3;base64," + res.audio);
-            audio.onended = function () { setUIState('idle'); };
-            audio.onerror = function () { speakTextNative(text); };
-            audio.play().catch(function() { speakTextNative(text); });
-          } else {
-            speakTextNative(text);
-          }
-        })
-        .catch(function () {
-          speakTextNative(text);
+  synthesis.cancel(); // متوقف کردن صدای پیش‌فرض مرورگر
+  
+  callBackend('getAudio', { text: text, gender: currentSettings.voiceGender || 'female' })
+    .then(function (res) {
+      if (res && res.audio) {
+        setUIState('speaking');
+        // تعیین نوع MIME برای پخش شفاف audio/mp3
+        var audio = new Audio("data:audio/mp3;base64," + res.audio);
+        
+        audio.onended = function () { 
+          setUIState('idle'); 
+        };
+        
+        audio.onerror = function (e) { 
+          console.warn('خطا در پخش فایل صوتی، سوئیچ به صدای سیستم:', e);
+          speakTextNative(text); 
+        };
+        
+        audio.play().catch(function(err) { 
+          console.warn('پخش خودکار مسدود شد:', err);
+          speakTextNative(text); 
         });
-    }
+      } else {
+        speakTextNative(text);
+      }
+    })
+    .catch(function (err) {
+      console.error('خطای دریافت صوتی از بک‌اند:', err);
+      speakTextNative(text);
+    });
+}
 
     // صدای رباتی پشتیبان (فقط در صورت خطا)
     function speakTextNative(text) {
