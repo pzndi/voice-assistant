@@ -292,9 +292,8 @@
     // ==========================================
     // تابع جدید پخش صدای انسانی (از طریق بک‌اند)
     // ==========================================
-    function speakText(text) {
+  function speakText(text) {
   synthesis.cancel(); // متوقف کردن صدای پیش‌فرض مرورگر
-  
   callBackend('getAudio', { text: text, gender: currentSettings.voiceGender || 'female' })
     .then(function (res) {
       if (res && res.audio) {
@@ -323,10 +322,9 @@
       console.error('خطای دریافت صوتی از بک‌اند:', err);
       speakTextNative(text);
     });
-}
-
+    }
     // صدای رباتی پشتیبان (فقط در صورت خطا)
-    function speakTextNative(text) {
+  function speakTextNative(text) {
       var u = new SpeechSynthesisUtterance(text);
       u.lang = 'fa-IR';
       u.rate = parseFloat(currentSettings.voiceSpeed) || 1;
@@ -339,8 +337,7 @@
       u.onerror = function () { setUIState('idle'); };
       synthesis.speak(u);
     }
-
-    function setUIState(state) {
+  function setUIState(state) {
       var m = document.getElementById('micBtn'), s = document.getElementById('statusText'), w = document.getElementById('micWrapper');
       m.className = 'mic-btn'; w.className = 'mic-wrapper'; isProcessing = false;
       if (state === 'listening') { m.classList.add('listening'); w.classList.add('listening'); s.innerText = '🎙️ در حال گوش دادن...'; s.style.color = '#fbc02d'; }
@@ -348,8 +345,7 @@
       else if (state === 'speaking') { m.classList.add('speaking'); s.innerText = '🔊 در حال صحبت...'; s.style.color = '#4caf50'; isProcessing = true; }
       else { s.innerText = 'آماده پاسخگویی'; s.style.color = 'var(--accent)'; }
     }
-
-    function addMessageToChat(text, sender) {
+  function addMessageToChat(text, sender) {
       var c = document.getElementById('chatContainer'), w = document.getElementById('welcomeMsg');
       if (w) w.remove();
       var d = document.createElement('div');
@@ -357,8 +353,7 @@
       d.innerText = text;
       c.appendChild(d); c.scrollTop = c.scrollHeight;
     }
-
-    function showError(text) {
+  function showError(text) {
       var c = document.getElementById('chatContainer'), d = document.createElement('div');
       d.className = 'chat-bubble error-bubble'; d.innerText = '⚠️ ' + text;
       c.appendChild(d); c.scrollTop = c.scrollHeight;
