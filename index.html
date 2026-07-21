@@ -363,33 +363,8 @@
         });
     }
 
-        function speakText(text) {
-      synthesis.cancel();
-      
-      // تلاش برای پخش صدای انسانی از سرویس رایگان
-      callBackend('getAudio', { text: text, gender: currentSettings.voiceGender || 'female' })
-        .then(function (res) {
-          if (res.audio) {
-            setUIState('speaking');
-            // تبدیل Base64 به فایل صوتی و پخش آن
-            var audio = new Audio("data:audio/mp3;base64," + res.audio);
-            audio.onend = function () { setUIState('idle'); };
-            audio.onerror = function () { 
-              speakTextNative(text); // برگشت به صدای رباتی در صورت خطا
-            };
-            audio.play().catch(function() { speakTextNative(text); });
-          } else {
-            speakTextNative(text);
-          }
-        })
-        .catch(function (err) {
-          console.error("TTS API Error, falling back to native:", err);
-          speakTextNative(text);
-        });
-    }
-
     // تابع پشتیبان (فقط در صورت قطعی اینترنت یا خطای سرویس اجرا می‌شود)
-        function speakText(text) {
+            function speakText(text) {
       synthesis.cancel();
       
       // انتخاب صدای زنانه یا مردانه
