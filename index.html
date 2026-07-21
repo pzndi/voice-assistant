@@ -146,7 +146,7 @@
     // =====================================================================
     var CONFIG = {
       // حتما آدرس دیپلوی جدید خود را اینجا قرار دهید
-      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbz5XbjZ697y6hBZ3S5-xKXaLPoaGizIowscPhk-A3g2RBaALfzAZfFooCvyawhoAXfyoQ/exec',
+      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbyeswuZzcAsBscMF4VVGUFlJPFMJEtQE5x8ZziEXz5UY0PGV4VeYwK1ml1AAH_2inEAAg/exec',
       TOKEN: 'va2026-x7Kp9mQ2rT8nL4vB1sD6f'
     };
 
@@ -363,8 +363,33 @@
         });
     }
 
-    function speakText(text) {
+        function speakText(text) {
       synthesis.cancel();
+      
+      // تلاش برای پخش صدای انسانی از سرویس رایگان
+      callBackend('getAudio', { text: text, gender: currentSettings.voiceGender || 'female' })
+        .then(function (res) {
+          if (res.audio) {
+            setUIState('speaking');
+            // تبدیل Base64 به فایل صوتی و پخش آن
+            var audio = new Audio("data:audio/mp3;base64," + res.audio);
+            audio.onend = function () { setUIState('idle'); };
+            audio.onerror = function () { 
+              speakTextNative(text); // برگشت به صدای رباتی در صورت خطا
+            };
+            audio.play().catch(function() { speakTextNative(text); });
+          } else {
+            speakTextNative(text);
+          }
+        })
+        .catch(function (err) {
+          console.error("TTS API Error, falling back to native:", err);
+          speakTextNative(text);
+        });
+    }
+
+    // تابع پشتیبان (فقط در صورت قطعی اینترنت یا خطای سرویس اجرا می‌شود)
+    function speakTextNative(text) {
       var utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'fa-IR';
       utterance.rate = parseFloat(currentSettings.voiceSpeed) || 1;
@@ -374,15 +399,8 @@
       for (var i = 0; i < voices.length; i++) {
         if (voices[i].lang.startsWith('fa')) { faVoice = voices[i]; break; }
       }
-      if (!faVoice) {
-        for (var j = 0; j < voices.length; j++) {
-          if (voices[j].lang.startsWith('ar')) { faVoice = voices[j]; break; }
-        }
-      }
 
       if (faVoice) utterance.voice = faVoice;
-      utterance.pitch = currentSettings.voiceGender === 'male' ? 0.8 : 1.2;
-
       utterance.onstart = function () { setUIState('speaking'); };
       utterance.onend = function () { setUIState('idle'); };
       utterance.onerror = function () { setUIState('idle'); };
