@@ -389,6 +389,35 @@
     }
 
     // تابع پشتیبان (فقط در صورت قطعی اینترنت یا خطای سرویس اجرا می‌شود)
+        function speakText(text) {
+      synthesis.cancel();
+      
+      // انتخاب صدای زنانه یا مردانه
+      const voiceName = (currentSettings.voiceGender || 'female') === 'male' ? 'Ibrahim' : 'Zeina';
+      
+      // ساخت مستقیم لینک صوتی (بدون نیاز به بک‌اند و بدون محدودیت حجم)
+      const audioUrl = "https://api.streamelements.com/kappa/v2/speech?voice=" + voiceName + "&text=" + encodeURIComponent(text);
+      
+      setUIState('speaking');
+      
+      // پخش مستقیم صدا در مرورگر
+      var audio = new Audio(audioUrl);
+      
+      audio.onended = function () { 
+        setUIState('idle'); 
+      };
+      
+      audio.onerror = function () { 
+        // فقط در صورت قطع بودن کامل اینترنت کاربر، صدای رباتی پخش می‌شود
+        speakTextNative(text); 
+      };
+      
+      audio.play().catch(function() { 
+        speakTextNative(text); 
+      });
+    }
+
+    // تابع پشتیبان (فقط برای مواقع قطعی اینترنت)
     function speakTextNative(text) {
       var utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'fa-IR';
