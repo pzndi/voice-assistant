@@ -116,7 +116,7 @@
     <div class="modal-box">
       <h2>تنظیمات سیستم</h2>
       <div class="form-group">
-        <label for="setApiKey">کلید Gemini API</label>
+        <label for="setApiKey">کلید Groq API</label>
         <input type="password" id="setApiKey" placeholder="خالی بگذارید تا کلید قبلی حفظ شود">
         <small id="apiKeyStatus"></small>
       </div>
@@ -141,12 +141,9 @@
   </div>
 
   <script>
-    // =====================================================================
-    // تنظیمات اتصال به بک‌اند Apps Script
-    // =====================================================================
     var CONFIG = {
-      // حتما آدرس دیپلوی جدید خود را اینجا قرار دهید
-      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbyeswuZzcAsBscMF4VVGUFlJPFMJEtQE5x8ZziEXz5UY0PGV4VeYwK1ml1AAH_2inEAAg/exec',
+      // آدرس بک‌اند خودتان را اینجا بگذارید
+      WEB_APP_URL: 'https://script.google.com/macros/s/AKfycbxVY0f4kPSEFf3O7TTNKy9BdN17u38ZWnJfoo3S2uFN2vw5MXnQ8jQ4a4PhqpTuVY8YPA/exec',
       TOKEN: 'va2026-x7Kp9mQ2rT8nL4vB1sD6f'
     };
 
@@ -186,29 +183,22 @@
 
     function loadSettings() {
       callBackend('getSettings').then(function (settings) {
-        if (settings.error) {
-          showError('خطا در دریافت تنظیمات: ' + settings.error);
-          return;
-        }
+        if (settings.error) { showError('خطا در دریافت تنظیمات'); return; }
         currentSettings = settings;
       }).catch(function (err) {
-        showError('اتصال به سرور برقرار نشد. آدرس WEB_APP_URL را بررسی کنید.');
-        console.error(err);
+        showError('اتصال به سرور برقرار نشد.');
       });
     }
 
     function toggleTheme() {
       document.body.classList.toggle('dark-mode');
-      var isDark = document.body.classList.contains('dark-mode');
-      document.getElementById('themeBtn').innerText = isDark ? '☀️' : '🌙';
+      document.getElementById('themeBtn').innerText = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
     }
 
     function toggleSettings() {
       document.getElementById('settingsModal').classList.toggle('active');
       document.getElementById('setApiKey').value = '';
-      document.getElementById('apiKeyStatus').innerText = currentSettings.apiKeySet
-        ? 'یک کلید API از قبل ذخیره شده است.'
-        : 'هنوز کلید API ذخیره نشده است.';
+      document.getElementById('apiKeyStatus').innerText = currentSettings.apiKeySet ? 'یک کلید API ذخیره شده است.' : 'هنوز کلید API ذخیره نشده است.';
       document.getElementById('setVoiceSpeed').value = currentSettings.voiceSpeed || 1;
       document.getElementById('setVoiceGender').value = currentSettings.voiceGender || 'female';
       document.getElementById('setTemperature').value = currentSettings.temperature || 0.7;
@@ -223,7 +213,6 @@
         temperature: document.getElementById('setTemperature').value,
         maxContext: 10000
       };
-
       document.getElementById('saveStatus').innerText = 'در حال ذخیره...';
       callBackend('saveSettings', newSettings).then(function (res) {
         if (res.error) throw new Error(res.error);
@@ -233,234 +222,133 @@
         if (newSettings.apiKey) currentSettings.apiKeySet = true;
         document.getElementById('saveStatus').innerText = '✅ ذخیره شد!';
         setTimeout(toggleSettings, 800);
-      }).catch(function (err) {
+      }).catch(function () {
         document.getElementById('saveStatus').innerText = '❌ خطا در ذخیره!';
-        console.error(err);
       });
     }
 
     function requestMicPermission(callback) {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showError('این مرورگر از دسترسی به میکروفون پشتیبانی نمی‌کند.');
-        callback(false);
-        return;
+        showError('مرورگر از میکروفون پشتیبانی نمی‌کند.'); callback(false); return;
       }
-
       navigator.mediaDevices.getUserMedia({ audio: true })
-        .then(function (stream) {
-          stream.getTracks().forEach(function (track) { track.stop(); });
-          callback(true);
-        })
-        .catch(function (err) {
-          console.error('Mic Permission Error:', err);
-          showError('دسترسی میکروفون رد شد. لطفاً از تنظیمات مرورگر اجازه دهید.');
-          callback(false);
-        });
+        .then(function (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); callback(true); })
+        .catch(function () { showError('دسترسی میکروفون رد شد.'); callback(false); });
     }
 
     function initSpeechRecognition() {
       var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        showError('مرورگر شما از تشخیص صدا پشتیبانی نمی‌کند. لطفاً از Google Chrome استفاده کنید.');
-        return;
-      }
+      if (!SpeechRecognition) { showError('مرورگر شما از تشخیص صدا پشتیبانی نمی‌کند.'); return; }
       recognition = new SpeechRecognition();
-      recognition.lang = 'fa-IR';
-      recognition.continuous = false;
-      recognition.interimResults = false;
-
+      recognition.lang = 'fa-IR'; recognition.continuous = false; recognition.interimResults = false;
       recognition.onstart = function () { setUIState('listening'); };
-
-      recognition.onresult = function (event) {
-        var finalTranscript = '';
-        for (var i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          }
-        }
-        if (finalTranscript.trim()) {
-          processUserInput(finalTranscript);
-        } else {
-          setUIState('idle');
-        }
+      recognition.onresult = function (e) {
+        var t = '';
+        for (var i = e.resultIndex; i < e.results.length; ++i) { if (e.results[i].isFinal) t += e.results[i][0].transcript; }
+        if (t.trim()) processUserInput(t); else setUIState('idle');
       };
-
-      recognition.onerror = function (event) {
+      recognition.onerror = function (e) {
         setUIState('idle');
-        if (event.error === 'not-allowed') {
-          showError('دسترسی میکروفون رد شد.');
-        } else if (event.error === 'no-speech') {
-          showError('صدایی شنیده نشد. دوباره تلاش کنید.');
-        } else if (event.error !== 'aborted') {
-          showError('خطا در تشخیص صدا: ' + event.error);
-        }
+        if (e.error === 'not-allowed') showError('دسترسی میکروفون رد شد.');
+        else if (e.error === 'no-speech') showError('صدایی شنیده نشد.');
+        else if (e.error !== 'aborted') showError('خطا در تشخیص صدا: ' + e.error);
       };
-
-      recognition.onend = function () {
-        var micBtn = document.getElementById('micBtn');
-        if (micBtn && micBtn.classList.contains('listening')) {
-          setUIState('idle');
-        }
-      };
+      recognition.onend = function () { if (document.getElementById('micBtn').classList.contains('listening')) setUIState('idle'); };
     }
 
     function handleMicClick() {
       if (isProcessing) return;
-
-      if (synthesis.speaking) {
-        synthesis.cancel();
-        setUIState('idle');
-        return;
-      }
-
-      requestMicPermission(function (hasPermission) {
-        if (!hasPermission) return;
-        try {
-          recognition.start();
-        } catch (e) {
-          recognition.stop();
-          setTimeout(function () { recognition.start(); }, 200);
-        }
+      if (synthesis.speaking) { synthesis.cancel(); setUIState('idle'); return; }
+      requestMicPermission(function (ok) {
+        if (!ok) return;
+        try { recognition.start(); } catch (e) { recognition.stop(); setTimeout(function () { recognition.start(); }, 200); }
       });
     }
 
     function processUserInput(text) {
       setUIState('processing');
       addMessageToChat(text, 'user');
-
       var startTime = Date.now();
-
       callBackend('askGemini', { question: text, history: conversationHistory })
         .then(function (res) {
-          var responseTime = Date.now() - startTime;
-
           if (res.error) {
-            var msg = 'خطای ناشناخته رخ داد.';
-            if (res.error === 'API_KEY_MISSING') msg = 'کلید API تنظیم نشده است. از بخش تنظیمات وارد کنید.';
+            var msg = 'خطای ناشناخته';
+            if (res.error === 'API_KEY_MISSING') msg = 'کلید API تنظیم نشده است.';
             else if (res.error === 'INVALID_API_KEY') msg = 'کلید API نامعتبر است.';
-            else if (res.error === 'EMPTY_SHEET') msg = 'شیت شما خالی است یا ساختار مناسبی ندارد.';
-            else if (res.error === 'UNAUTHORIZED') msg = 'توکن دسترسی نامعتبر است.';
-            else if (res.error === 'API_ERROR') msg = 'خطا در ارتباط با سرور هوش مصنوعی.';
-            showError(msg);
-            setUIState('idle');
-            return;
+            else if (res.error === 'EMPTY_SHEET') msg = 'شیت شما خالی است.';
+            else if (res.error.includes('API_ERROR')) msg = 'خطا در ارتباط با سرور هوش مصنوعی.';
+            showError(msg); setUIState('idle'); return;
           }
-
           var aiResponse = res.text;
           addMessageToChat(aiResponse, 'ai');
           speakText(aiResponse);
-
           conversationHistory.push({ role: 'user', text: text });
           conversationHistory.push({ role: 'ai', text: aiResponse });
-
-          callBackend('logConversation', { question: text, answer: aiResponse, responseTime: responseTime })
-            .catch(function (err) { console.error('Log error:', err); });
+          callBackend('logConversation', { question: text, answer: aiResponse, responseTime: Date.now() - startTime }).catch(function(){});
         })
-        .catch(function (err) {
-          showError('اتصال به سرور برقرار نشد.');
-          setUIState('idle');
-          console.error(err);
-        });
+        .catch(function () { showError('اتصال به سرور برقرار نشد.'); setUIState('idle'); });
     }
 
-    // تابع پشتیبان (فقط در صورت قطعی اینترنت یا خطای سرویس اجرا می‌شود)
+    // ==========================================
+    // تابع جدید پخش صدای انسانی (از طریق بک‌اند)
+    // ==========================================
     function speakText(text) {
       synthesis.cancel();
       
-      // انتخاب صدای زنانه یا مردانه
-      const voiceName = (currentSettings.voiceGender || 'female') === 'male' ? 'Ibrahim' : 'Zeina';
-      
-      // ساخت مستقیم لینک صوتی (بدون نیاز به بک‌اند و بدون محدودیت حجم)
-      const audioUrl = "https://api.streamelements.com/kappa/v2/speech?voice=" + voiceName + "&text=" + encodeURIComponent(text);
-      
-      setUIState('speaking');
-      
-      // پخش مستقیم صدا در مرورگر
-      var audio = new Audio(audioUrl);
-      
-      audio.onended = function () { 
-        setUIState('idle'); 
-      };
-      
-      audio.onerror = function () { 
-        // فقط در صورت قطع بودن کامل اینترنت کاربر، صدای رباتی پخش می‌شود
-        speakTextNative(text); 
-      };
-      
-      audio.play().catch(function() { 
-        speakTextNative(text); 
-      });
+      callBackend('getAudio', { text: text, gender: currentSettings.voiceGender || 'female' })
+        .then(function (res) {
+          if (res.audio) {
+            setUIState('speaking');
+            var audio = new Audio("data:audio/mp3;base64," + res.audio);
+            audio.onended = function () { setUIState('idle'); };
+            audio.onerror = function () { speakTextNative(text); };
+            audio.play().catch(function() { speakTextNative(text); });
+          } else {
+            speakTextNative(text);
+          }
+        })
+        .catch(function () {
+          speakTextNative(text);
+        });
     }
 
-    // تابع پشتیبان (فقط برای مواقع قطعی اینترنت)
+    // صدای رباتی پشتیبان (فقط در صورت خطا)
     function speakTextNative(text) {
-      var utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'fa-IR';
-      utterance.rate = parseFloat(currentSettings.voiceSpeed) || 1;
-
-      var voices = synthesis.getVoices();
-      var faVoice = null;
-      for (var i = 0; i < voices.length; i++) {
-        if (voices[i].lang.startsWith('fa')) { faVoice = voices[i]; break; }
-      }
-
-      if (faVoice) utterance.voice = faVoice;
-      utterance.onstart = function () { setUIState('speaking'); };
-      utterance.onend = function () { setUIState('idle'); };
-      utterance.onerror = function () { setUIState('idle'); };
-
-      synthesis.speak(utterance);
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'fa-IR';
+      u.rate = parseFloat(currentSettings.voiceSpeed) || 1;
+      var v = synthesis.getVoices();
+      var f = null;
+      for (var i=0; i<v.length; i++) { if(v[i].lang.startsWith('fa')){f=v[i];break;} }
+      if(f) u.voice = f;
+      u.onstart = function () { setUIState('speaking'); };
+      u.onend = function () { setUIState('idle'); };
+      u.onerror = function () { setUIState('idle'); };
+      synthesis.speak(u);
     }
 
     function setUIState(state) {
-      var micBtn = document.getElementById('micBtn');
-      var status = document.getElementById('statusText');
-      var wrapper = document.getElementById('micWrapper');
-
-      micBtn.className = 'mic-btn';
-      wrapper.className = 'mic-wrapper';
-      isProcessing = false;
-
-      if (state === 'listening') {
-        micBtn.classList.add('listening');
-        wrapper.classList.add('listening');
-        status.innerText = '🎙️ در حال گوش دادن...';
-        status.style.color = '#fbc02d';
-      } else if (state === 'processing') {
-        micBtn.classList.add('processing');
-        status.innerText = '⏳ در حال پردازش...';
-        status.style.color = 'var(--accent)';
-        isProcessing = true;
-      } else if (state === 'speaking') {
-        micBtn.classList.add('speaking');
-        status.innerText = '🔊 در حال صحبت...';
-        status.style.color = '#4caf50';
-        isProcessing = true;
-      } else {
-        status.innerText = 'آماده پاسخگویی';
-        status.style.color = 'var(--accent)';
-      }
+      var m = document.getElementById('micBtn'), s = document.getElementById('statusText'), w = document.getElementById('micWrapper');
+      m.className = 'mic-btn'; w.className = 'mic-wrapper'; isProcessing = false;
+      if (state === 'listening') { m.classList.add('listening'); w.classList.add('listening'); s.innerText = '🎙️ در حال گوش دادن...'; s.style.color = '#fbc02d'; }
+      else if (state === 'processing') { m.classList.add('processing'); s.innerText = '⏳ در حال پردازش...'; s.style.color = 'var(--accent)'; isProcessing = true; }
+      else if (state === 'speaking') { m.classList.add('speaking'); s.innerText = '🔊 در حال صحبت...'; s.style.color = '#4caf50'; isProcessing = true; }
+      else { s.innerText = 'آماده پاسخگویی'; s.style.color = 'var(--accent)'; }
     }
 
     function addMessageToChat(text, sender) {
-      var chatContainer = document.getElementById('chatContainer');
-      var welcomeMsg = document.getElementById('welcomeMsg');
-      if (welcomeMsg) welcomeMsg.remove();
-
-      var div = document.createElement('div');
-      div.className = 'chat-bubble ' + (sender === 'user' ? 'user-bubble' : 'ai-bubble');
-      div.innerText = text;
-      chatContainer.appendChild(div);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      var c = document.getElementById('chatContainer'), w = document.getElementById('welcomeMsg');
+      if (w) w.remove();
+      var d = document.createElement('div');
+      d.className = 'chat-bubble ' + (sender === 'user' ? 'user-bubble' : 'ai-bubble');
+      d.innerText = text;
+      c.appendChild(d); c.scrollTop = c.scrollHeight;
     }
 
     function showError(text) {
-      var chatContainer = document.getElementById('chatContainer');
-      var div = document.createElement('div');
-      div.className = 'chat-bubble error-bubble';
-      div.innerText = '⚠️ ' + text;
-      chatContainer.appendChild(div);
-      chatContainer.scrollTop = chatContainer.scrollHeight;
+      var c = document.getElementById('chatContainer'), d = document.createElement('div');
+      d.className = 'chat-bubble error-bubble'; d.innerText = '⚠️ ' + text;
+      c.appendChild(d); c.scrollTop = c.scrollHeight;
     }
 
     if (speechSynthesis.onvoiceschanged !== undefined) {
